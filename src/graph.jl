@@ -5,11 +5,10 @@ using Combinatorics
 using StatsBase
 using Plots
 
-
-AbstractEdge = AbstractSet{Int}
+AbstractUndirectedEdge  = AbstractSet{Int}
 Edge = Set{Int}
 
-struct WeightedEdge <: AbstractEdge
+struct WeightedEdge <: AbstractUndirectedEdge
     edge::Edge
     weight::Float64
     function WeightedEdge(e::Edge,w::Real)
@@ -20,10 +19,37 @@ weight(e::WeightedEdge) = e.weight
 weight(e::Edge) = 1
 edge(e::WeightedEdge) = e.edge
 edge(e::Edge) = e
-length(e::WeightedEdge) = length(e.edge)
 WeightedEdge(e::NTuple{2,T},w::Real) where {T} = WeightedEdge(Edge(e),w)
 (==)(e1::WeightedEdge,e2::WeightedEdge) = e1.edge == e2.edge
 hash(e::WeightedEdge) = hash(e.edge)
+
+abstract type AbstractDirectedEdge end
+struct DirectedEdge <: AbstractDirectedEdge
+    edge::NTuple{2,Int}
+end
+function DirectedEdge(e::AbstractVector{Int})
+    if length(e) == 2
+        DirectedEdge(Tuple(e))
+    else
+        error("Edge must have length of 2")
+    end
+end
+
+struct WeightedDirectedEdge <: AbstractDirectedEdge
+    edge::DirectedEdge
+    weight::Float64
+    function WeightedDirectedEdge(e::DirectedEdge, w::Real)
+        new(e,w)
+    end
+end
+WeightedDirectedEdge(e::NTuple{2,Int},w::Real) = WeightedDirectedEdge(DirectedEdge(e), w)
+weight(e::WeightedDirectedEdge) = e.weight
+weight(e::DirectedEdge) = 1
+edge(e::WeightedDirectedEdge) = e.edge.edge
+edge(e::DirectedEdge) = e.edge
+
+AbstractEdge = Union{AbstractUndirectedEdge, AbstractDirectedEdge}
+length(e::AbstractEdge) = length(edge(e))
 
 
 struct Graph{T}
@@ -45,9 +71,17 @@ end
 
 function Graph(V::AbstractVector{T}, E::AbstractVector{TE}) where {T, TE <: AbstractVector}
     V = Set(V)
-    E = Set(Set.(E))
+    E = Set(Edge.(E))
     Graph(V,E)
 end
+
+function DGraph(V::AbstractVector{T}, E::AbstractVector{TE}) where {T, TE <: AbstractVector}
+    V = Set(V)
+    E = Set(DirectedEdge.(E))
+    Graph(V,E)
+end
+
+
 
 Laplacian{T} = Matrix{T}
 # struct Laplacian{T<:Real}
@@ -71,9 +105,15 @@ function adjacency_matrix(V::Set{Int},E::Set{T}) where {T<:AbstractEdge}
     for e in E
         i,j = edge(e)
         A[i,j] = weight(e)
-        A[j,i] = weight(e)
+        if T <: AbstractUndirectedEdge
+            A[j,i] = weight(e)
+        end
     end
-    Symmetric(A)
+    if T <: AbstractUndirectedEdge
+        return Symmetric(A)
+    else
+        return A
+    end
 end
 
 degree_matrix(G::Graph) = G.D
@@ -85,6 +125,30 @@ function degree_matrix(V::Set{Int},E::Set{T}) where {T<:AbstractEdge}
         degrees[j] += weight(e)
     end
     Diagonal(degrees)
+end
+function degree_matrix(V::Set{Int},E::Set{T},direction::Symbol=:in) where {T<:AbstractDirectedEdge}
+    degrees = zeros(length(V))
+    for e in E
+        i,j = edge(e)
+        if direction == :in
+            degrees[j] += weight(e)
+        else
+            degrees[i] += weight(e)
+        end
+    end
+    Diagonal(degrees)
+end
+
+function indicidence_matrix(V::Set{Int}, E::Set{T}) where {T<:AbstractDirectedEdge}
+    n,m = length(V), length(E)
+    M = zeros(m,n)
+    for (k,e) in enumerate(E)
+        i,j = edge(e)
+        w = weight(e)
+        M[k,i] = w
+        M[k,j] = -w
+    end
+    return M
 end
 
 graph_laplacian(G::Graph) = degree_matrix(G) - adjacency_matrix(G)

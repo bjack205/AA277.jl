@@ -1,4 +1,5 @@
 import Base: size
+import Plots: plot, plot!
 using DifferentialEquations
 
 struct Network
@@ -27,6 +28,20 @@ function proximity_consensus(p::Int,n::Int,R::Real,eps=1e-4)
         consensus_dynamics_laplacian!(ṡ,s,L)
     end
 end
+
+"""
+Generate ode function for formation control, where the graph is static and
+    has the same edges as the target graph
+"""
+function odefun(F::Formation)
+    function dynamics(ẋ,x,p,t)
+        p,n = size(F)
+        s = NetworkState(x,p,n)
+        ṡ = NetworkState(ẋ,p,n)
+        formation_dynamics!(ṡ,s,F.G,F)
+    end
+end
+
 
 
 struct NetworkState{T}
@@ -57,19 +72,6 @@ NetworkState(x::Vector, N::Network) where {T} = NetworkState(x, N.p, N.n)
 size(s::NetworkState) = (s.p,s.n)
 
 
-function consensus_dynamics!(ẋ::NetworkState,x::NetworkState,G::Graph)
-    p,n = size(x)
-    X = x.X
-    Ẋ = ẋ.X
-    for i = 1:n
-        Ni = neighbors(G,i)
-        Ẋ[:,i] *= 0  # Make sure it is zero to start off with
-        for j in neighbors(G,i)
-            Ẋ[:,i] += X[:,j] - X[:,i]
-        end
-    end
-end
-
 consensus_dynamics_laplacian!(ẋ::NetworkState,x::NetworkState,G::Graph) = consensus_dynamics_laplacian!(ẋ,x,graph_laplacian(G))
 function consensus_dynamics_laplacian!(ẋ::NetworkState,x::NetworkState,L::Laplacian)
     p,n = size(x)
@@ -79,6 +81,16 @@ function consensus_dynamics_laplacian!(ẋ::NetworkState,x::NetworkState,L::Lapl
         Ẋ[k,:] = -L*X[k,:]
     end
 end
+
+function formation_dynamics!(ẋ::NetworkState, x::NetworkState, G::Graph, F::Formation)
+    consensus_dynamics_laplacian!(ẋ,x,G)
+    p,n = size(x)
+    Ẋ = ẋ.X
+    for k = 1:p
+        Ẋ[k,:] -= F.Δ[k,:]
+    end
+end
+
 
 
 function simulate(N::Network, X0::NetworkState, dynamics::Function=odefun(N); tf::Real=10., show_plot=false)
@@ -138,10 +150,14 @@ end
 
 function plot(state::NetworkState, G::Graph; kwargs...)
     p = plot()
+    plot!(state, G; kwargs...)
+    return p
+end
+function plot!(state::NetworkState, G::Graph; kwargs...)
+    X = state.X
     for e in G.E
         (i,j) = edge(e)
         plot!(X[1,[i,j]],X[2,[i,j]],color=:black,label="")
     end
     scatter!(X[1,:],X[2,:],color=:blue,markersize=5,label=""; kwargs...)
-    p
 end
