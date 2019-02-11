@@ -138,7 +138,6 @@ function plot(N::Network,sol; kwargs...)
         X,Y = get_trajectories(sol,p,n)
         p = plot(X[1],Y[1],label="robot 1"; kwargs...)
         for i = 2:n
-            plot!(X[i],Y[i],label="robot $i")
         end
         scatter!(X0[1,:],X0[2,:],color=1:n,label="start",markershape=:square)
         scatter!(Xf[1,:],Xf[2,:],color=1:n,label="end",markershape=:circle)
