@@ -155,6 +155,41 @@ graph_laplacian(G::Graph) = degree_matrix(G) - adjacency_matrix(G)
 is_connected(G::Graph) = rank(graph_laplacian(G)) == num_vertices(G) - 1
 random_graph(n::Int) = random_graph(n,rand(1:n^2))
 
+function add_edge!(G::Graph,e::AbstractEdge)
+    if e ∈ G.E
+        return false
+    else
+        i,j = edge(e)
+        w = weight(e)
+        push!(G.E,e)
+        G.A[i,j] += w
+        G.D[i,i] += w
+        if e isa AbstractUndirectedEdge
+            G.A[j,i] += w
+            G.D[j,j] += w
+        end
+        return true
+    end
+end
+add_edge!(G::Graph{T},e::NTuple{2,Int}) where T = add_edge!(G,T(e))
+
+function add_random_edges!(G::Graph{T},num::Int) where T
+    added = 0
+    n,m = size(G)
+    edges = collect(Combinatorics.combinations(1:n,2))
+    rand(edges)
+    iter = 0
+    while true
+        e = rand(edges)
+        if add_edge!(G,Tuple(e))
+            added += 1
+        end
+        iter += 1
+        added >= num ? break : nothing
+        iter >= length(edges) ? break : nothing
+    end
+end
+
 function random_graph(n::Int,m::Int)
     V = 1:n
     E = collect(combinations(1:n,2))

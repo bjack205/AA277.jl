@@ -43,3 +43,7 @@ scatter!([avg2[1]],[avg2[2]],label="Break Average",color=:red)
 
 plot(sol0,legend=:none,title="Static Graph")
 plot(sol,legend=:none,title="Proximity Graph")
+
+sf
+get_edge_distances(sf,F.G)
+maximum(calc_distance_error(sf,F))

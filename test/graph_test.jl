@@ -12,6 +12,12 @@ G = Graph(V,E)
 @test degree_matrix(G) == D
 @test graph_laplacian(G) == D-A
 
+@test add_edge!(G,Set([1,3]))
+@test num_edges(G) == 3
+@test add_edge!(G,Set([2,3])) == false
+@test G.A == adjacency_matrix(G.V,G.E)
+@test G.D == degree_matrix(G.V,G.E)
+
 E2 = [[1,2],[2,3],[1,1],[2,1]]
 G2 = Graph(V,E2)
 @test num_edges(G2) == 2
